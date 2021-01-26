@@ -23,10 +23,6 @@ const (
 
 // KindFromSides should have a comment documenting it.
 func KindFromSides(a, b, c float64) Kind {
-	// Write some code here to pass the test suite.
-	// Then remove all the stock comments.
-	// They're here to help you get started but they only clutter a finished solution.
-	// If you leave them in, reviewers may protest!
 	var k Kind
 	s := []float64{a, b, c}
 	sort.Float64s(s)
