@@ -24,15 +24,8 @@ func Verse(n int) string {
 	}
 
 	verse := fmt.Sprintf("This is the %s", words[n-1].object)
-	if n != 1 {
-		verse += "\n"
-	}
-
 	for i := n - 2; i >= 0; i-- {
-		verse += fmt.Sprintf("that %s the %s", words[i].verb, words[i].object)
-		if i != 0 {
-			verse += "\n"
-		}
+		verse += fmt.Sprintf("\nthat %s the %s", words[i].verb, words[i].object)
 	}
 	verse += "."
 
