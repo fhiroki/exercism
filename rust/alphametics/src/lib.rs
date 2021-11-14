@@ -1,70 +1,97 @@
-use itertools::Itertools;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+
+#[derive(Debug)]
+struct Letter {
+    letter: char,
+    factor: i64,
+    start: u8,
+}
+
+fn guess(letters: &[Letter], letters_value: &mut Vec<u8>, equation_value: i64) -> Option<Vec<u8>> {
+    if letters.is_empty() {
+        return if equation_value == 0 {
+            Some(letters_value.clone())
+        } else {
+            None
+        };
+    }
+    let factor = letters[0].factor;
+    if factor < 0 && equation_value < 0 {
+        return None;
+    }
+
+    // Brute force recursive loop
+    for n in letters[0].start..=9 {
+        if !letters_value.contains(&n) {
+            letters_value.push(n);
+            let new_equation_value = equation_value + n as i64 * factor;
+            let answer = guess(&letters[1..], letters_value, new_equation_value);
+            if answer.is_some() {
+                return answer;
+            }
+            letters_value.pop();
+        }
+    }
+    None
+}
 
 pub fn solve(input: &str) -> Option<HashMap<char, u8>> {
-    let v: Vec<&str> = input.trim().split(" == ").collect();
-    let left = v[0].split(" + ");
-    let right = v[1];
-    let mut left_map : HashMap<char, u64> = HashMap::new();
-    let mut right_map : HashMap<char, u64> = HashMap::new();
-    let mut char_set = HashSet::new();
-    let mut leading_char_set = HashSet::new();
-
-    for s in left {
-        let mut i = 1;
-        leading_char_set.insert(s.chars().nth(0).unwrap());
-        for c in s.trim().chars().rev() {
-            if left_map.contains_key(&c) {
-                *left_map.get_mut(&c).unwrap() += i;
-            } else {
-                left_map.insert(c, i);
-                char_set.insert(c);
+    // Will compose a 1st degree equation to sum all letters from words
+    let mut letters: HashMap<char, Letter> = HashMap::new();
+    let mut right = false;
+    for word in input.split_whitespace() {
+        match word {
+            "=" | "==" => right = true,
+            "+" => (),
+            w => {
+                let word_length = w.len();
+                let mut factor: i64 = 10i64.pow((word_length - 1) as u32);
+                if right {
+                    factor *= -1;
+                }
+                for (pos, letter) in w.chars().enumerate() {
+                    if let Some(letter) = letters.get_mut(&letter) {
+                        letter.factor += factor;
+                    } else {
+                        if letters.len() == 10 {
+                            // Too many letters
+                            return None;
+                        }
+                        letters.insert(
+                            letter,
+                            Letter {
+                                letter,
+                                factor,
+                                start: if pos == 0 && word_length > 1 { 1 } else { 0 },
+                            },
+                        );
+                    }
+                    factor /= 10;
+                }
             }
-            i *= 10;
         }
     }
-
-    let mut i = 1;
-    leading_char_set.insert(right.chars().nth(0).unwrap());
-    for c in right.trim().chars().rev() {
-        if right_map.contains_key(&c) {
-            *right_map.get_mut(&c).unwrap() += i;
+    let mut letters: Vec<Letter> = letters.into_iter().map(|(_, value)| value).collect();
+    // Sorting in descending order for positive factors and ascending for megative factors.
+    // This will be used to detect when the equations result is already negative and there's
+    // no more positive factors, so we can early break the brute force loop.
+    letters.sort_by(|left, right| {
+        if right.factor < 0 && left.factor < 0 {
+            left.factor.cmp(&right.factor)
         } else {
-            right_map.insert(c, i);
-            char_set.insert(c);
+            right.factor.cmp(&left.factor)
         }
-        i *= 10;
+    });
+
+    let mut answer = Vec::new();
+    if let Some(letters_value) = guess(&letters, &mut answer, 0) {
+        return Some(
+            letters
+                .iter()
+                .map(|letter| letter.letter)
+                .zip(letters_value.into_iter())
+                .collect(),
+        );
     }
-
-    let char_list : Vec<char> = char_set.into_iter().collect();
-
-    for perm in (0u8..10u8).permutations(char_list.len()) {
-        let map : HashMap<char, _> = char_list.clone().into_iter().zip(perm.into_iter()).collect();
-        let mut is_ok = true;
-        for (key, value) in map.iter() {
-            if *value == 0 && leading_char_set.contains(key) {
-                is_ok = false;
-                break;
-            }
-        }
-        if !is_ok {
-            continue;
-        }
-
-        let mut left_sum = 0;
-        let mut right_sum = 0;
-
-        for (key, value) in left_map.iter() {
-            left_sum += (map[key] as u64) * value;
-        }
-        for (key, value) in right_map.iter() {
-            right_sum += (map[key] as u64) * value;
-        }
-
-        if left_sum == right_sum {
-            return Some(map);
-        }
-    }
-
     None
 }
